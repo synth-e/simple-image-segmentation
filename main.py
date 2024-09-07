@@ -27,7 +27,7 @@ class PascalVOCDataset(VOCSegmentation):
     def __init__(
         self,
         root,
-        label_mapping,
+        # label_mapping,
         image_set="train",
         transform=None,
         target_transform=None,
@@ -40,7 +40,7 @@ class PascalVOCDataset(VOCSegmentation):
             transform=transform,
             target_transform=target_transform,
         )
-        self.label_mapping = label_mapping
+        # self.label_mapping = label_mapping
 
     def __getitem__(self, index):
         image, target = super().__getitem__(index)
@@ -50,8 +50,8 @@ class PascalVOCDataset(VOCSegmentation):
     def _map_labels(self, mask):
         # Map the labels in the mask based on the label_mapping
         mapped_mask = torch.zeros_like(mask, dtype=torch.long)
-        for key, value in self.label_mapping.items():
-            mapped_mask[mask == int(key)] = value
+        # for key, value in self.label_mapping.items():
+        #     mapped_mask[mask == int(key)] = value
         return mapped_mask
 
 
@@ -102,12 +102,12 @@ def main(args):
     # Load the label mapping from the provided JSON file
     if not os.path.isfile(args.label):
         raise ValueError(f"Label file {args.label} does not exist.")
-    label_mapping = load_label_mapping(args.label)
+    # label_mapping = load_label_mapping(args.label)
 
     # Load Dataset
     train_dataset = PascalVOCDataset(
         root=args.data,
-        label_mapping=label_mapping,
+        # label_mapping=label_mapping,
         image_set="train",
         transform=input_transform,
         target_transform=target_transform,
@@ -119,7 +119,7 @@ def main(args):
     # Initialize Model
     model = models.segmentation.deeplabv3_mobilenet_v3_large(pretrained=True)
     model.classifier[4] = nn.Conv2d(
-        256, len(label_mapping), kernel_size=(1, 1), stride=(1, 1)
+        256, args.num_classes, kernel_size=(1, 1), stride=(1, 1)
     )  # Adjust for number of classes
     model = model.cuda()  # Move model to GPU if available
 
@@ -146,14 +146,20 @@ if __name__ == "__main__":
         required=True,
         help="Path to the dataset directory (contains images and masks)",
     )
-    parser.add_argument(
-        "--label",
-        type=str,
-        required=True,
-        help="Path to the label mapping file, expect json file",
-    )
+    # parser.add_argument(
+    #     "--label",
+    #     type=str,
+    #     required=True,
+    #     help="Path to the label mapping file, expect json file",
+    # )
     parser.add_argument(
         "--output", type=str, required=True, help="File path to save the trained model"
+    )
+    parser.add_argument(
+        "--num_classes",
+        type=int,
+        required=True,
+        help="Number of objects",
     )
     parser.add_argument(
         "--batch_size",
