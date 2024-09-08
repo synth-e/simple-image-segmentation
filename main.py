@@ -135,10 +135,15 @@ def main(args):
 
     # Initialize Model
     model = models.segmentation.deeplabv3_mobilenet_v3_large(pretrained=True)
+    for param in model.parameters():
+        param.requires_grad = False
     model.classifier[4] = nn.Conv2d(
         256, args.num_classes, kernel_size=(1, 1), stride=(1, 1)
     )  # Adjust for number of classes
-    model = model.cuda()  # Move model to GPU if available
+    for param in model.classifier[4].parameters():
+        param.requires_grad = True
+
+    model = model.cuda()
 
     # Loss and Optimizer
     criterion = nn.CrossEntropyLoss()
