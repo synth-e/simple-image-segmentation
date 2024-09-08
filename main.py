@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import models, transforms
-from torch.utils.data import DataLoader
-from torchvision.datasets import VOCSegmentation
+from torch.utils.data import DataLoader, Dataset
 import argparse
 import os
 import json
+from PIL import Image
 
 # Define Data Transformations
 input_transform = transforms.Compose(
@@ -22,37 +22,61 @@ target_transform = transforms.Compose(
 )
 
 
-# Custom Dataset Class
-class PascalVOCDataset(VOCSegmentation):
+class SegmentationDataset(Dataset):
     def __init__(
         self,
-        root,
-        # label_mapping,
-        image_set="train",
+        root_dir,
+        image_dir="images",
+        mask_dir="masks",
         transform=None,
         target_transform=None,
     ):
-        super().__init__(
-            root=root,
-            year="2012",
-            image_set=image_set,
-            download=False,
-            transform=transform,
-            target_transform=target_transform,
+        """
+        Args:
+            root_dir (str): Directory with all the images and masks.
+            image_dir (str): Subdirectory name containing the input images.
+            mask_dir (str): Subdirectory name containing the segmentation masks.
+            transform (callable, optional): Optional transform to be applied on an image.
+            target_transform (callable, optional): Optional transform to be applied on a mask.
+        """
+        self.root_dir = root_dir
+        self.image_dir = os.path.join(root_dir, image_dir)
+        self.mask_dir = os.path.join(root_dir, mask_dir)
+        self.transform = transform
+        self.target_transform = target_transform
+
+        # Get the list of image and mask filenames
+        self.image_filenames = sorted(os.listdir(self.image_dir))
+        self.mask_filenames = sorted(os.listdir(self.mask_dir))
+
+        # Ensure that the number of images and masks are the same
+        assert len(self.image_filenames) == len(
+            self.mask_filenames
+        ), "Mismatch between images and masks."
+
+    def __len__(self):
+        return len(self.image_filenames)
+
+    def __getitem__(self, idx):
+        # Load the image and mask
+        img_path = os.path.join(self.image_dir, self.image_filenames[idx])
+        mask_path = os.path.join(self.mask_dir, self.mask_filenames[idx])
+
+        assert (
+            self.image_filenames[idx].split(".")[0]
+            == self.mask_filenames[idx].split(".")[0]
         )
-        # self.label_mapping = label_mapping
 
-    def __getitem__(self, index):
-        image, target = super().__getitem__(index)
-        target = self._map_labels(target)
-        return image, target
+        image = Image.open(img_path).convert("RGB")  # Convert image to RGB
+        mask = Image.open(mask_path).convert("L")  # Convert mask to grayscale
 
-    def _map_labels(self, mask):
-        # Map the labels in the mask based on the label_mapping
-        mapped_mask = torch.zeros_like(mask, dtype=torch.long)
-        # for key, value in self.label_mapping.items():
-        #     mapped_mask[mask == int(key)] = value
-        return mapped_mask
+        # Apply transformations if they exist
+        if self.transform:
+            image = self.transform(image)
+        if self.target_transform:
+            mask = self.target_transform(mask)
+
+        return image, mask
 
 
 # Define Training Loop
@@ -99,16 +123,9 @@ def main(args):
     if not os.path.isdir(args.data):
         raise ValueError(f"Dataset path {args.data} does not exist.")
 
-    # Load the label mapping from the provided JSON file
-    if not os.path.isfile(args.label):
-        raise ValueError(f"Label file {args.label} does not exist.")
-    # label_mapping = load_label_mapping(args.label)
-
     # Load Dataset
-    train_dataset = PascalVOCDataset(
-        root=args.data,
-        # label_mapping=label_mapping,
-        image_set="train",
+    train_dataset = SegmentationDataset(
+        root_dir=args.data,
         transform=input_transform,
         target_transform=target_transform,
     )
@@ -125,7 +142,7 @@ def main(args):
 
     # Loss and Optimizer
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
     # Train Model
     train_model(model, train_loader, criterion, optimizer, num_epochs=args.num_epochs)
