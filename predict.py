@@ -75,8 +75,11 @@ def visualize_segmentation(image, mask):
     plt.subplot(1, 2, 2)
     plt.imshow(mask, cmap="jet")
     plt.title("Predicted Segmentation Mask")
-
-    plt.show()
+    
+    try:
+        plt.show()
+    except:
+        plt.savefig('out.png')
 
 
 def main(args):

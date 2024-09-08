@@ -8,6 +8,7 @@ import os
 import json
 from tqdm import tqdm
 from PIL import Image
+import numpy as np
 
 # Define Data Transformations
 input_transform = transforms.Compose(
@@ -69,8 +70,8 @@ class SegmentationDataset(Dataset):
         )
 
         image = Image.open(img_path).convert("RGB")  # Convert image to RGB
-        mask = Image.open(mask_path).convert("L")  # Convert mask to grayscale
-
+        mask = Image.open(mask_path) # .convert("L")  # Convert mask to grayscale
+        
         # Apply transformations if they exist
         if self.transform:
             image = self.transform(image)
