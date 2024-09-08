@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader, Dataset
 import argparse
 import os
 import json
+from tqdm import tqdm
 from PIL import Image
 
 # Define Data Transformations
@@ -30,7 +31,7 @@ class SegmentationDataset(Dataset):
         mask_dir="masks",
         transform=None,
         target_transform=None,
-    ):
+        ):
         """
         Args:
             root_dir (str): Directory with all the images and masks.
@@ -84,7 +85,7 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs=10):
     model.train()
     for epoch in range(num_epochs):
         running_loss = 0.0
-        for i, (images, masks) in enumerate(train_loader):
+        for i, (images, masks) in tqdm(enumerate(train_loader), total=len(train_loader), desc=f'Training epoch {epoch}'):
             images, masks = images.cuda(), masks.long().cuda()
 
             # Forward pass
@@ -97,10 +98,10 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs=10):
             optimizer.step()
 
             running_loss += loss.item()
-            if (i + 1) % 10 == 0:
-                print(
-                    f"Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}"
-                )
+#            if (i + 1) % 10 == 0:
+#                print(
+#                   f"Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}"
+#                )
 
         print(
             f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(train_loader):.4f}"
@@ -186,7 +187,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=4,
+        default=64,
         required=False,
         help="Batch size to train model",
     )
